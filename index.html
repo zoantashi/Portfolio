@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZoanTashi | Video Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #000000;
+            --white: #ffffff;
+            --gray-300: #b0b0b0;
+            --gray-400: #808080;
+            --gray-500: #555555;
+            --gray-600: #333333;
+            --gray-700: #1a1a1a;
+            --gray-800: #111111;
+            --gray-900: #0a0a0a;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--black);
+            color: var(--white);
+            overflow-x: hidden;
+        }
+
+        .loader {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--black);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .loader-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 700;
+            letter-spacing: 3px;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+        .loader-text span {
+            display: inline-block;
+            animation: slideUp 0.35s ease forwards;
+            opacity: 0; transform: translateY(100%);
+        }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+
+        .loader-bar {
+            width: 160px; height: 2px;
+            background: var(--gray-700);
+            margin-top: 25px; position: relative; overflow: hidden;
+        }
+        .loader-bar::after {
+            content: ''; position: absolute;
+            left: 0; top: 0; height: 100%; width: 0%;
+            background: var(--white);
+            animation: loadBar 1.5s ease forwards;
+        }
+        @keyframes loadBar { to { width: 100%; } }
+
+        .cursor {
+            width: 20px; height: 20px;
+            border: 2px solid var(--white); border-radius: 50%;
+            position: fixed; pointer-events: none; z-index: 10000;
+            transition: transform 0.15s ease, background 0.15s ease;
+            transform: translate(-50%, -50%);
+        }
+        .cursor.hover { transform: translate(-50%, -50%) scale(2); background: rgba(255,255,255,0.1); }
+
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%;
+            padding: 20px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.3s ease;
+        }
+        .nav-logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.4rem; font-weight: 700;
+            letter-spacing: 2px; text-decoration: none; color: var(--white);
+        }
+        .nav-logo span { color: var(--gray-400); }
+
+        .nav-links { display: flex; gap: 35px; list-style: none; }
+        .nav-links a {
+            color: var(--gray-300); text-decoration: none;
+            font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;
+            transition: color 0.3s ease; position: relative;
+        }
+        .nav-links a::after {
+            content: ''; position: absolute; bottom: -5px; left: 0;
+            width: 0; height: 1px; background: var(--white);
+            transition: width 0.3s ease;
+        }
+        .nav-links a:hover { color: var(--white); }
+        .nav-links a:hover::after { width: 100%; }
+
+        .menu-btn {
+            display: none; flex-direction: column; gap: 6px;
+            cursor: pointer; z-index: 1001;
+        }
+        .menu-btn span { width: 28px; height: 2px; background: var(--white); transition: all 0.3s ease; }
+        .menu-btn.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 6px); }
+        .menu-btn.active span:nth-child(2) { opacity: 0; }
+        .menu-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -6px); }
+
+        .hero {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+            opacity: 0; animation: heroFadeIn 0.8s ease 1.8s forwards;
+        }
+        @keyframes heroFadeIn { to { opacity: 1; } }
+
+        .hero-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at center, var(--gray-800) 0%, var(--black) 70%);
+        }
+        .hero-grid {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridMove 20s linear infinite;
+        }
+        @keyframes gridMove { 0% { transform: translate(0,0); } 100% { transform: translate(60px,60px); } }
+
+        .hero-content { text-align: center; z-index: 2; position: relative; }
+
+        .hero-logo {
+            width: 120px; height: 120px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.15);
+            opacity: 0; animation: fadeInUp 0.8s ease 2s forwards;
+        }
+        .hero-logo img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+
+        .hero-tag {
+            font-size: 0.75rem; letter-spacing: 5px; text-transform: uppercase;
+            color: var(--gray-400); margin-bottom: 25px;
+            opacity: 0; animation: fadeInUp 0.8s ease 2.2s forwards;
+        }
+        .hero-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.8rem, 8vw, 6.5rem);
+            font-weight: 700; line-height: 1.1; margin-bottom: 18px;
+            opacity: 0; animation: fadeInUp 0.8s ease 2.4s forwards;
+        }
+        .hero-title .outline { -webkit-text-stroke: 2px var(--white); color: transparent; }
+
+        .hero-sub {
+            font-size: 1rem; color: var(--gray-300);
+            max-width: 450px; margin: 0 auto 35px; line-height: 1.6;
+            opacity: 0; animation: fadeInUp 0.8s ease 2.6s forwards;
+        }
+        .hero-cta {
+            display: inline-flex; align-items: center; gap: 12px;
+            padding: 14px 35px; border: 1px solid var(--white);
+            color: var(--white); text-decoration: none;
+            font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase;
+            transition: all 0.4s ease;
+            opacity: 0; animation: fadeInUp 0.8s ease 2.8s forwards;
+        }
+        .hero-cta:hover { background: var(--white); color: var(--black); }
+        .hero-cta svg { width: 18px; height: 18px; transition: transform 0.3s ease; }
+        .hero-cta:hover svg { transform: translateX(5px); }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .scroll-indicator {
+            position: absolute; bottom: 35px;
+            left: 0; right: 0;
+            margin: 0 auto;
+            width: fit-content;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            opacity: 0; animation: fadeInUp 0.8s ease 3s forwards;
+        }
+        .scroll-indicator span {
+            font-size: 0.65rem; letter-spacing: 3px;
+            text-transform: uppercase; color: var(--gray-400);
+        }
+        .scroll-line {
+            width: 1px; height: 35px; background: var(--gray-600);
+            position: relative; overflow: hidden;
+        }
+        .scroll-line::after {
+            content: ''; position: absolute; top: -100%; left: 0;
+            width: 100%; height: 100%; background: var(--white);
+            animation: scrollAnim 1.5s ease infinite;
+        }
+        @keyframes scrollAnim { 0% { top: -100%; } 100% { top: 100%; } }
+
+        section { padding: 100px 0; position: relative; }
+        .section-header { margin-bottom: 50px; text-align: center; }
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            font-weight: 700; margin-bottom: 12px;
+        }
+        .section-line { width: 50px; height: 2px; background: var(--white); margin: 0 auto; }
+
+        .video-scroll {
+            display: flex; gap: 16px;
+            overflow-x: auto; scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 25px;
+            scrollbar-width: none;
+        }
+        .video-scroll::-webkit-scrollbar { display: none; }
+
+        .video-card {
+            flex: 0 0 68vw; max-width: 300px;
+            scroll-snap-align: center;
+            aspect-ratio: 9/16;
+            border-radius: 14px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: var(--gray-800);
+            position: relative;
+            transition: border-color 0.3s ease;
+        }
+        .video-card:hover { border-color: rgba(255,255,255,0.2); }
+
+        .video-card video {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+
+        .mute-btn {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+        .mute-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+        .mute-btn svg {
+            width: 16px; height: 16px;
+            fill: var(--white);
+        }
+        .mute-btn .unmute-icon { display: none; }
+        .mute-btn.unmuted .mute-icon { display: none; }
+        .mute-btn.unmuted .unmute-icon { display: block; }
+
+        .client-card {
+            text-align: center; text-decoration: none; color: var(--white);
+            transition: transform 0.3s ease;
+        }
+        .client-card:hover { transform: translateY(-5px); }
+
+        .client-avatar {
+            width: 85px; height: 85px; border-radius: 50%;
+            margin: 0 auto 10px;
+            border: 2px solid var(--gray-600);
+            overflow: hidden; background: var(--gray-700);
+            transition: border-color 0.3s ease;
+        }
+        .client-card:hover .client-avatar { border-color: var(--white); }
+        .client-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .client-name { font-size: 0.78rem; color: var(--gray-300); }
+        .client-role { font-size: 0.68rem; color: var(--gray-500); margin-top: 3px; }
+
+        .contact { background: var(--black); text-align: center; padding: 60px 20px; }
+
+        .contact-box {
+            max-width: 550px;
+            margin: 0 auto;
+            border: 1px solid var(--gray-600);
+            border-radius: 20px;
+            padding: 45px 30px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .contact-box h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(1.8rem, 5vw, 2.8rem);
+            font-weight: 700; margin-bottom: 16px;
+        }
+        .contact-box > p {
+            color: var(--gray-300); line-height: 1.7;
+            margin-bottom: 35px; font-size: 0.92rem;
+        }
+
+        .gmail-btn {
+            display: inline-flex; align-items: center; gap: 12px;
+            padding: 13px 25px;
+            border: 1px solid var(--white);
+            color: var(--white); text-decoration: none;
+            font-size: 0.82rem; letter-spacing: 1px;
+            transition: all 0.4s ease;
+        }
+        .gmail-btn:hover { background: var(--white); color: var(--black); }
+        .gmail-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .gmail-btn .arrow-icon { width: 16px; height: 16px; }
+
+        .social-icons {
+            display: flex; gap: 15px; justify-content: center; margin-top: 30px;
+        }
+        .social-icon {
+            width: 48px; height: 48px;
+            border: 1px solid var(--gray-600);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--white); text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .social-icon:hover {
+            background: var(--white); color: var(--black);
+            border-color: var(--white); transform: translateY(-3px);
+        }
+        .social-icon svg { width: 20px; height: 20px; }
+
+        .stats {
+            display: flex; justify-content: center; gap: 60px;
+            margin-top: 70px; padding-top: 50px;
+            border-top: 1px solid var(--gray-700); flex-wrap: wrap;
+        }
+        .stat h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem; font-weight: 700;
+        }
+        .stat p {
+            font-size: 0.75rem; letter-spacing: 2px;
+            color: var(--gray-400); text-transform: uppercase; margin-top: 4px;
+        }
+
+        footer {
+            padding: 25px 30px;
+            border-top: 1px solid var(--gray-800);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 12px;
+        }
+        footer p { font-size: 0.75rem; color: var(--gray-500); }
+        .footer-links { display: flex; gap: 20px; }
+        .footer-links a {
+            color: var(--gray-400); text-decoration: none;
+            font-size: 0.75rem; transition: color 0.3s ease;
+        }
+        .footer-links a:hover { color: var(--white); }
+
+        .reveal {
+            opacity: 0;
+            transition: opacity 0.7s ease;
+        }
+        .reveal.active { opacity: 1; }
+
+        @media (max-width: 768px) {
+            nav { padding: 18px 20px; }
+            .nav-links {
+                position: fixed; top: 0; right: -100%;
+                width: 100%; height: 100vh; background: var(--black);
+                flex-direction: column; align-items: center; justify-content: center;
+                gap: 28px; transition: right 0.5s ease;
+            }
+            .nav-links.open { right: 0; }
+            .nav-links a { font-size: 1.1rem; }
+            .menu-btn { display: flex; }
+            .cursor { display: none; }
+            .video-card { flex: 0 0 65vw; }
+            .contact-box { padding: 40px 25px; }
+            footer { flex-direction: column; text-align: center; padding: 20px; }
+        }
+
+        @media (min-width: 769px) {
+            .video-card { flex: 0 0 250px; }
+            .video-scroll { padding: 0 50px; gap: 22px; }
+            section { padding: 120px 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+
+<div class="loader" id="loader">
+    <div class="loader-text">
+        <span style="animation-delay:.05s">Z</span><span style="animation-delay:.1s">O</span><span style="animation-delay:.15s">A</span><span style="animation-delay:.2s">N</span><span style="animation-delay:.25s">T</span><span style="animation-delay:.3s">A</span><span style="animation-delay:.35s">S</span><span style="animation-delay:.4s">H</span><span style="animation-delay:.45s">I</span>
+    </div>
+    <div class="loader-bar"></div>
+</div>
+
+<nav>
+    <a href="#" class="nav-logo">ZOAN<span>TASHI</span></a>
+    <ul class="nav-links" id="navLinks">
+        <li><a href="#showreels" onclick="closeMenu()">Showreels</a></li>
+        <li><a href="#work" onclick="closeMenu()">My Work</a></li>
+        <li><a href="#motion" onclick="closeMenu()">Motion</a></li>
+        <li><a href="#clients" onclick="closeMenu()">Clients</a></li>
+        <li><a href="#contact" onclick="closeMenu()">Contact</a></li>
+    </ul>
+    <div class="menu-btn" id="menuBtn" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+        <div class="hero-logo">
+            <img src="logo.png" alt="ZoanTashi">
+        </div>
+        <p class="hero-tag">Video Editor & Motion Designer</p>
+        <h1 class="hero-title">I craft <span class="outline">visual</span><br>stories</h1>
+        <p class="hero-sub">Turning raw footage into cinematic experiences. Specializing in showreels, music videos, and motion graphics.</p>
+        <a href="#showreels" class="hero-cta">
+            View My Work
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+    </div>
+    <div class="scroll-indicator">
+        <span>Scroll</span>
+        <div class="scroll-line"></div>
+    </div>
+</section>
+
+<!-- Showreels -->
+<section id="showreels">
+    <div class="section-header reveal">
+        <h2 class="section-title">Showreels</h2>
+        <div class="section-line"></div>
+    </div>
+    <div class="video-scroll">
+        <div class="video-card">
+            <video src="reel1.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="reel2.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="reel3.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- My Work -->
+<section id="work" style="background:var(--gray-900)">
+    <div class="section-header reveal">
+        <h2 class="section-title">My Work</h2>
+        <div class="section-line"></div>
+    </div>
+    <div class="video-scroll">
+        <div class="video-card">
+            <video src="work1.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="work2.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="work3.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="work4.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Motion Graphics -->
+<section id="motion">
+    <div class="section-header reveal">
+        <h2 class="section-title">Motion Graphics</h2>
+        <div class="section-line"></div>
+    </div>
+    <div class="video-scroll">
+        <div class="video-card">
+            <video src="motion1.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="motion2.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="motion3.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="motion4.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="motion5.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+        <div class="video-card">
+            <video src="motion6.mp4" muted loop playsinline class="scroll-video"></video>
+            <button class="mute-btn" onclick="toggleMute(this)">
+                <svg class="mute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                <svg class="unmute-icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Clients -->
+<section id="clients" style="background:var(--gray-900)">
+    <div class="section-header reveal">
+        <h2 class="section-title">Brands I've Collaborated With</h2>
+        <div class="section-line"></div>
+    </div>
+    <div style="display:flex; justify-content:center; padding:0 25px;">
+        <a href="https://www.instagram.com/tuoai.co" target="_blank" class="client-card reveal">
+            <div class="client-avatar"><img src="tuoai.jpg" alt="tuoai.co"></div>
+            <p class="client-name">@tuoai.co</p>
+            <p class="client-role">AI & Tech</p>
+        </a>
+    </div>
+</section>
+
+<!-- Contact -->
+<section class="contact" id="contact">
+    <div class="contact-box reveal">
+        <h2>Let's Collaborate</h2>
+        <p>Have a project in mind? I'd love to hear about it. Let's create something extraordinary together.</p>
+
+        <a href="mailto:zoantashidayo@gmail.com" class="gmail-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="M22 4L12 13 2 4"/>
+            </svg>
+            zoantashidayo@gmail.com
+            <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 17L17 7M17 7H7M17 7v10"/>
+            </svg>
+        </a>
+
+        <div class="social-icons">
+            <a href="https://instagram.com/zoantashi" target="_blank" class="social-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="2" y="2" width="20" height="20" rx="5"/>
+                    <circle cx="12" cy="12" r="5"/>
+                    <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/>
+                </svg>
+            </a>
+            <a href="https://twitter.com/zoantashi" target="_blank" class="social-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+            </a>
+            <a href="https://youtube.com/@zoantashi" target="_blank" class="social-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <div class="stats reveal">
+        <div class="stat"><h3>50+</h3><p>Projects</p></div>
+        <div class="stat"><h3>30+</h3><p>Clients</p></div>
+        <div class="stat"><h3>3+</h3><p>Years</p></div>
+    </div>
+</section>
+
+<footer>
+    <p>© 2025 ZoanTashi</p>
+    <div class="footer-links">
+        <a href="#showreels">Showreels</a>
+        <a href="#work">Work</a>
+        <a href="#motion">Motion</a>
+        <a href="#contact">Contact</a>
+    </div>
+</footer>
+
+<script>
+    window.addEventListener('load', () => {
+        setTimeout(() => document.getElementById('loader').classList.add('hidden'), 1800);
+    });
+    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 3000);
+
+    const cursor = document.getElementById('cursor');
+    document.addEventListener('mousemove', e => {
+        cursor.style.left = e.clientX + 'px';
+        cursor.style.top = e.clientY + 'px';
+    });
+    document.querySelectorAll('a, button, .video-card, .client-card').forEach(el => {
+        el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+        el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+    });
+
+    function toggleMenu() {
+        document.getElementById('navLinks').classList.toggle('open');
+        document.getElementById('menuBtn').classList.toggle('active');
+    }
+    function closeMenu() {
+        document.getElementById('navLinks').classList.remove('open');
+        document.getElementById('menuBtn').classList.remove('active');
+    }
+
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('active'); });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+        const curr = window.scrollY;
+        document.querySelector('nav').style.transform =
+            (curr > lastScroll && curr > 80) ? 'translateY(-100%)' : 'translateY(0)';
+        lastScroll = curr;
+    });
+
+    function toggleMute(btn) {
+        const video = btn.parentElement.querySelector('video');
+        if (video.muted) {
+            document.querySelectorAll('video.scroll-video').forEach(v => {
+                v.muted = true;
+                const b = v.parentElement.querySelector('.mute-btn');
+                if (b) b.classList.remove('unmuted');
+            });
+            video.muted = false;
+            btn.classList.add('unmuted');
+        } else {
+            video.muted = true;
+            btn.classList.remove('unmuted');
+        }
+    }
+
+    function setupVideoAutoplay() {
+        document.querySelectorAll('.video-scroll').forEach(container => {
+            const handleScroll = () => {
+                const videos = container.querySelectorAll('video.scroll-video');
+                const containerRect = container.getBoundingClientRect();
+                videos.forEach(video => {
+                    const rect = video.getBoundingClientRect();
+                    const center = rect.left + rect.width / 2;
+                    const inView = center > containerRect.left && center < containerRect.right;
+                    if (inView) {
+                        videos.forEach(v => {
+                            if (v !== video) {
+                                v.pause();
+                                v.muted = true;
+                                const b = v.parentElement.querySelector('.mute-btn');
+                                if (b) b.classList.remove('unmuted');
+                            }
+                        });
+                        video.play().catch(() => {});
+                    } else {
+                        video.pause();
+                        video.muted = true;
+                        const b = video.parentElement.querySelector('.mute-btn');
+                        if (b) b.classList.remove('unmuted');
+                    }
+                });
+            };
+            container.addEventListener('scroll', handleScroll);
+            setTimeout(handleScroll, 2000);
+        });
+    }
+    setupVideoAutoplay();
+</script>
+
+</body>
+</html>
